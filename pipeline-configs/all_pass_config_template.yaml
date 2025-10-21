@@ -1,0 +1,121 @@
+# Commit these config files!
+# Don't run --help, as it exits the entire application.
+# Don't run the same stage twice.
+
+# The processing type that will be used for every stage: local or hpc.
+# May be overwritten by a stage's configuration.
+processing_type: hpc
+
+# Whether to use the previous output folder as the input folder for the next stage.
+# `input_folder` may be overwritten by a stage's configuration.
+input_from_previous_output: true
+
+# The output folder template that determines the output folder for every stage.
+# May be overwritten by a stage's configuration. If not set, the stage's default
+# value will be used.
+# Dynamic values that can be used:
+#   {pipeline_iteration} is pipeline{run_idx}_{yaml_filename}_{previous_commit_shorthash} and must be the entire folder name.
+#   {stage_idx} is the stage 1-based index.
+#   {stage_idx0} is the stage 0-based index.
+#   {stage_name} is the stage name.
+output_folder_template: /projects/prjs0986/wp12/curated/<DATASET>/{pipeline_iteration}/stage{stage_idx}_{stage_name}
+
+# The logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration. All substrings of
+# `{output_folder}` will be replaced by the output folder of the stage, but only
+# if `output_folder` is explicitly set (using the stage's `output_folder` option
+# or using the global `output_folder_template`).
+logs_folder: "{output_folder}/logs"
+
+# The slurm logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration.
+# All substrings of`{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+slurm_logs_folder: "{output_folder}/slurm_logs"
+
+# When running the slurm pipeline, one might want to get some updates of a long running process
+# without checking the slurm environment everytime with squeue or other tools.
+# An alternative is to make use of the Slurm mailing functionality that send the user with the status
+# of the running process everytime the status changes.
+mail_type: "ALL"
+mail_user:
+
+# When running a pipeline on HPC, the Energy Aware Runtime (EAR)  system software for energy management can be activated.
+# EAR offers energy and performance node monitoring, job accounting and energy optimization.
+hpc_ear: "false"
+
+# This argument makes sure that a certain node is not used by the curation pipeline team as the training team is using them for training purposes
+hpc_exclude: "gcn[73-74]"
+
+# The stage-dependent options.
+# Run `poetry run stage STAGE_NAME` to see the available options per stage.
+# Use full option names (e.g. `--input_folder` but without the `--`) instead of
+# abbreviations (e.g. `-i`).
+# All substrings of `{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+# Other substrings are replaced as described for `output_folder_template`.
+stages:
+  - stage: data_splitting
+    input_folder: /projects/prjs0986/wp12/extracted/<DATASET>/
+    hpc_n_tasks: "1"
+    hpc_time: "01:00:00" # should take max 4.86h
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: "1"
+  - stage: string_normalization
+    hpc_n_tasks: "50"
+    hpc_time: "10:00:00" # should take max 4.86h
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: "1"
+    FTFYFormatter:
+      normalization: "NFC"
+  - stage: heuristic_filtering
+    hpc_n_tasks: "50"
+    hpc_time: "50:00:00" # should take max 4.86h
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: "1"
+    LanguageFilter:
+      languages: [
+          "en", # English
+          "nl", # Dutch
+          "da", # Danish
+          "sv", # Swedish
+          "af", # Afrikaans
+          "fy", # Frisian
+          "de", # German
+        ]
+      language_threshold: "0.0"
+      backend: "ft176"
+    NordicPileQualityFilter:
+      max_digit_fraction: "1.0"
+      min_n_char: "0"
+      min_mean_med_char: "0"
+      min_mean_med_word: "0"
+    GopherQualityFilter:
+      min_doc_words: "null"
+      max_doc_words: "null"
+      min_avg_word_length: "null"
+      max_avg_word_length: "null"
+      max_symbol_word_ratio: "1.0"
+      max_bullet_lines_ratio: "1.0"
+      max_ellipsis_lines_ratio: "1.0"
+      max_non_alpha_words_ratio: "1.0"
+      min_stop_words: "10"
+    GopherRepetitionFilter:
+      dup_line_frac: "1.0"
+      dup_para_frac: "1.0"
+      dup_line_char_frac: "1.0"
+      dup_para_char_frac: "1.0"
+      top_n_grams: [[2, 0.0], [3, 0.0], [4, 0.0]]
+      dup_n_grams: [[5, 0.0], [6, 0.0], [7, 0.0], [8, 0.0], [9, 0.0], [10, 0.0]]
+  - stage: deduplication
+    hpc_n_tasks: "50"
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_time: "50:00:00" # should take max 4.86h
+    hpc_mem_per_cpu_gb: "8"
+    hpc_gpu: "1"

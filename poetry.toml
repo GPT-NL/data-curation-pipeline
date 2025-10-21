@@ -1,0 +1,9 @@
+[http-basic.tno-gptnl]
+username = "__token__"
+password = "placeholder"
+# This is a project access token of the private package index and expires on July 3, 2025.
+
+[http-basic.tno-gptnl-energyutils]
+username = "__token__"
+password = "placeholder"
+# This is a project access token of the private package index and expires on July 3, 2025.

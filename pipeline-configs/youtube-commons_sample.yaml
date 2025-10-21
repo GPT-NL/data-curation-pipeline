@@ -1,0 +1,173 @@
+processing_type: hpc
+input_from_previous_output: true
+output_folder_template: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/{pipeline_iteration}/stage{stage_idx}_{stage_name}
+logs_folder: "{output_folder}/logs"
+slurm_logs_folder: "{output_folder}/slurm_logs"
+# mail_type: ALL
+hpc_ear: false
+hpc_exclude: "gcn[73-76]"
+hpc_nice: 100
+stages:
+  # initial data splitting to parallelize a bit normalization and deduplication signature
+  # - stage: "data_splitting"
+  #   input_folder: /projects/prjs0986/wp12/extracted/youtube-commons/eval_sample
+  #   hpc_n_tasks: 1
+  #   hpc_time: "01:00:00"
+  #   hpc_partition: "gpu_h100"
+  #   hpc_reservation: "gpt-nl"
+  #   hpc_gpu: 1
+  #   hpc_mem_per_cpu_gb: 8
+  #   # normalize
+  # - stage: string_normalization
+  #   hpc_n_tasks: 1
+  #   hpc_time: "01:00:00"
+  #   hpc_partition: gpu_h100
+  #   hpc_reservation: gpt-nl
+  #   hpc_gpu: 1
+  #   FTFYFormatter:
+  #     normalization: "NFC"
+  #   # deduplication before translation
+  # - stage: "deduplication"
+  #   hpc_n_tasks: 1
+  #   hpc_partition: "gpu_h100"
+  #   hpc_reservation: "gpt-nl"
+  #   hpc_time: "01:00:00"
+  #   hpc_mem_per_cpu_gb: 8
+  #   hpc_gpu: 1
+  #   # split to parallelize translation (from 50 of deduplication) and split lines too long (unbalanced split)
+  # - stage: data_splitting
+  #   max_file_size: "1_000_000" # 1-1.5MB
+  #   line_chunk_size: 100_000 # split very long lines to reduce variation in compute time for MT
+  #   batch_size: 5 # write output files with this frequency to have a margin of 0.5MB
+  #   hpc_n_tasks: 1
+  #   # hpc_partition: rome # rome or genoa
+  #   # hpc_cpus_per_task: 16
+  #   # hpc_mem_per_cpu_gb: 1 # needs around 4GB of RAM
+  #   hpc_partition: gpu_h100
+  #   hpc_reservation: gpt-nl
+  #   hpc_gpu: 1 # 1 GPU for each job, faster processing than multi-device
+  #   hpc_cpus_per_task: 16  # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+  #   hpc_mem_per_cpu_gb: 11  # h100: 1/4 node = 180 GiB across 16 cores --> 180/16 = 11.25 GB
+  #   hpc_time: "01:00:00" # takes around 1h on gpu_h100
+  # - stage: machine_translation
+  #   input_folder: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage4_data_splitting
+  #   output_folder: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage5_machine_translation_512
+  #   hpc_n_tasks: 36 # "5625" # one task for each file
+  #   hpc_time: "08:00:00" # should take max 4.86h
+  #   hpc_partition: gpu_h100
+  #   hpc_reservation: gpt-nl
+  #   hpc_gpu: 1 # 1 GPU for each job, faster processing than multi-device
+  #   hpc_cpus_per_task: 16  # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+  #   hpc_mem_per_cpu_gb: 11  # h100: 1/4 node = 180 GiB across 16 cores --> 180/16 = 11.25 GB
+  #   # PreLanguageFilter:
+  #   #   languages: ["en"] # only translating native english rows
+  #   ExtraFieldFilter:
+  #     extra_field_name: original_language
+  #     # only translate germanic (not dutch), spanish and french
+  #     allowed_values: [en, de, lb, af, fy, yi, sco, da, sv, "no", is, fo, es, fr]
+  #   # RegexFormatter:
+  #   #   pattern: ['\b(\w+)\s+\1\s+\1(\s+\1)*\b', '\s?\[[a-zA-Z&;_à-üÀ-Ü\s]{0,15}\]'] # TODO: doesn't work from yaml, double escapes
+  #   TranslatorStep:
+  #     # gemma parameters (LLM)
+  #     # model_name: ModelSpace/GemmaX2-28-9B-v0.1
+  #     # source_language: English # provide it with Gemma (otherwise quality will be very bad)
+  #     env_commands: "export HF_HOME=/projects/prjs0986/.hf_cache_dir" # add this to avoid errors
+  #     # env_commands: "export HF_HOME=/projects/prjs0986/.hf_cache_dir ; module load 2024 CUDA/12.6.0 ; export CUDA_HOME=/sw/arch/RHEL9/EB_production/2024/software/CUDA/12.6.0/"
+  #     # or madlad parameters (huggingface, non-LLM)
+  #     model_name: google/madlad400-10b-mt
+  #     use_vllm: false
+  #     # common parameters
+  #     batch_size: 32 # crashes with 32 (1024 chunk_size)
+  #     chunk_size: 512 # critical parameter for quality
+  #     chunk_mode: characters # characters or tokens
+  #     # stop_at: 5 # use this to debug, stops after this number of rows
+  #     # batch_stop_at: 1 # use this to debug, then delete to translate the whole text
+  #     # dry_run: "true" # to count the number of batches to translate (worst parquet split)
+  #     # glob_pattern: "*1893_00000.parquet" # (the longest file: ls -lhS /projects/prjs0986/wp12/curated/spanish-pd-books/pipeline00001_translation_spanish_pd_books_5441b36/stage1_data_splitting_balanced/ | head )
+  #   PostLanguageFilter:
+  #     languages: ["nl"]
+  #     language_threshold: 0.5
+  - stage: "heuristic_filtering"
+    input_folder: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage5_machine_translation_512
+    output_folder: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage6_heuristic_filtering
+    hpc_n_tasks: 12
+    hpc_time: "4:00:00"
+    hpc_partition: "gpu_h100"
+    hpc_mem_per_cpu_gb: "8"
+    hpc_reservation: "gpt-nl"
+    hpc_gpu: "1"
+    LanguageFilter:
+      languages: [
+          "en", # English
+          "nl", # Dutch
+          "da", # Danish
+          "sv", # Swedish
+          "af", # Afrikaans
+          "fy", # Frisian
+          "de", # German
+        ]
+      language_threshold: "0.55"
+      backend: "ft176"
+    NordicPileQualityFilter:
+      max_digit_fraction: "0.2"
+      min_n_char: "50"
+      min_mean_med_char: "9"
+      min_mean_med_word: "2.1"
+    GopherQualityFilter:
+      min_doc_words: "null"
+      max_doc_words: "null"
+      min_avg_word_length: "null"
+      max_avg_word_length: "null"
+      max_symbol_word_ratio: "0.1"
+      max_bullet_lines_ratio: "0.9"
+      max_ellipsis_lines_ratio: "0.3"
+      max_non_alpha_words_ratio: "0.7"
+      min_stop_words: "2"
+    GopherRepetitionFilter:
+      dup_line_frac: "0.35"
+      dup_para_frac: "0.35"
+      dup_line_char_frac: "0.2"
+      dup_para_char_frac: "0.2"
+      top_n_grams: [[2, 0.25], [3, 0.23], [4, 0.21]]
+      dup_n_grams:
+        [[5, 0.20], [6, 0.19], [7, 0.18], [8, 0.17], [9, 0.16], [10, 0.15]]
+  - stage: toxic_language_detection
+    input_folder: /projects/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage6_heuristic_filtering
+    output_folder: /gpfs/work5/0/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage7_toxic_language_detection
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: "1"
+    hpc_time: "4:00:00" # should take max 4.86h
+    hpc_cpus_per_task: "4" # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+    hpc_mem_per_cpu_gb: "4"
+    hpc_n_tasks: 12
+  # - stage: "deduplication"
+  #   hpc_n_tasks: "10"
+  #   hpc_partition: "gpu_h100"
+  #   hpc_reservation: "gpt-nl"
+  #   hpc_time: "01:00:00" # should take max 4.86h
+  #   hpc_mem_per_cpu_gb: "8"
+  #   hpc_gpu: "1"
+  - stage: pii_masking
+    input_folder: /gpfs/work5/0/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage7_toxic_language_detection
+    output_folder: /gpfs/work5/0/prjs0986/wp12/curated/youtube-commons/eval_sample/pipeline00001_youtube-commons_sample_11388ca/stage8_pii_masking
+    hpc_time: "4:00:00"
+    #hpc_partition: rome #or genoa
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpus: "1"
+    hpc_cpus_per_task: "16" # Need 16 cores (per private AI GPU instance - actually needs 64 but CPU affinity warnings can be ignored with GPU instance)
+    #hpc_mem_per_cpu_gb: "1"  # 120/128 = 0.9375
+    hpc_mem_per_cpu_gb: "6" # Need 64GB ram per private AI instance, 64/16 = 4
+    hpc_n_tasks: 12 # Number of data trove tasks with split up files
+    # Look into starting multiple containers with different ports and checking their health
+    env_commands: "for gpu in ${{CUDA_VISIBLE_DEVICES//,/ }}; do CUDA_VISIBLE_DEVICES=$gpu apptainer run --nv --contain --pwd /app --env PAI_PORT=$((gpu+SLURM_ARRAY_TASK_ID+8080)) --env PAI_TRITON_HTTP_PORT=$((gpu+SLURM_ARRAY_TASK_ID+SLURM_ARRAY_TASK_MAX+8089)) /projects/0/prjs0986/wp13/private-ai/private_ai_gpu.sif & done; sleep 40"
+    PII_PrivateAI_TNO:
+      chunk_pool_workers: 32 # Number of workers for chunks
+      doc_pool_workers: 16 # Number of workers for documents
+      request_batch_size: 64 # Chunks of the same document to be sent in the same request to PAI
+      batch_size: 16 # Documents to handle in the same batch
+      api_endpoint: "http://localhost:808{CUDA_VISIBLE_DEVICES}/" # Template for endpoint per GPU instance (only comma-separated indexes from CUDA_VISIBLE_DEVICES recognized for now), try to go to 8 instances
+      replacement_type: "MARKER" # GPU instance does not support SYNTHETIC
+      synthetic_replacement_chance: 1.00
+      synthetic_replacement_locale: "en-GB" # Depending on the dominant language use : English en-GB, Dutch nl-NL

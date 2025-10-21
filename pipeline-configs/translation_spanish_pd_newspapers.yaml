@@ -1,0 +1,46 @@
+processing_type: hpc
+input_from_previous_output: true
+output_folder_template: /projects/prjs0986/wp12/curated/spanish-pd-newspapers/{pipeline_iteration}/stage{stage_idx}_{stage_name}
+logs_folder: "{output_folder}/logs"
+slurm_logs_folder: "{output_folder}/slurm_logs"
+email:
+stages:
+  # - stage: data_splitting
+  #   input_folder: /projects/prjs0986/wp12/extracted/spanish-pd-newspapers/
+  #   # output_folder: /projects/prjs0986/wp12/curated/test-spanish-pd-newspapers/splitted
+  #   line_chunk_size: "100_000" # around the average for this dataset (longest line=47M)
+  #   max_file_size: "10_000_000" # 10-12MB, can process in around 4.86 hours
+  #   batch_size: "20" # write output files with this frequency to have a margin of 2MB
+  #   hpc_n_tasks: "1" # there is only one input file
+  #   hpc_partition: rome # rome or genoa
+  #   hpc_cpus_per_task: "16"
+  #   hpc_mem_per_cpu_gb: "1" # needs around 4GB of RAM
+  #   hpc_time: "00:20:00" # takes around 11 minutes
+  - stage: machine_translation
+    input_folder: /projects/prjs0986/wp12/curated/spanish-pd-newspapers/pipeline00000_translation_spanish_pd_newspapers_c4538f1/stage1_data_splitting_balanced
+    output_folder: /projects/prjs0986/wp12/curated/spanish-pd-newspapers/pipeline00000_translation_spanish_pd_newspapers_c4538f1/stage2_machine_translation
+    hpc_n_tasks: 6339 # one task for each file
+    hpc_time: "06:00:00" # should take max 4.86h
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: 1 # 1 GPU for each job, faster processing than multi-device
+    hpc_cpus_per_task: 16 # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+    hpc_mem_per_cpu_gb: 11 # h100: 1/4 node = 180 GiB across 16 cores --> 180/16 = 11.25 GB
+    # stop_at: "10" # use this to debug, stops after this number of rows
+    # batch_stop_at: "5" # use this to debug, then delete to translate the whole text
+    # dry_run: "true" # to count the number of batches to translate (worst parquet split)
+    # glob_pattern: "*1893_00000.parquet" # (the longest file: ls -lhS /projects/prjs0986/wp12/curated/spanish-pd-newspapers/pipeline00000_translation_spanish_pd_newspapers_c4538f1/stage1_data_splitting_balanced | head )
+    PreLanguageFilter:
+      languages: [es]
+    TranslatorStep:
+      model_name: ModelSpace/GemmaX2-28-9B-v0.1
+      # or
+      model_name: google/madlad400-10b-mt
+      use_vllm: false
+      source_language: Spanish # provide it with Gemma!!! 
+      chunk_size: 1024 # critical parameter for quality
+      chunk_mode: characters # characters or tokens
+    #   stop_at: 1 # use this to debug, stops after this number of rows
+    #   batch_stop_at: 1 # use this to debug, then delete to translate the whole text
+    #   dry_run: "true" # to count the number of batches to translate (worst parquet split)
+    #   glob_pattern: "*1893_00000.parquet" # (the longest file: ls -lhS /projects/prjs0986/wp12/curated/spanish-pd-books/pipeline00001_translation_spanish_pd_books_5441b36/stage1_data_splitting_balanced/ | head )
