@@ -1,4 +1,10 @@
-# Data curation pipeline
+<div align="center">
+<h1>
+<a href="https://gpt-nl.nl/" target="_blank"><img src ="https://gpt-nl.nl/publish/pages/5180/beeldmerk-gpt_nl.svg" alt="GPT-NL" widht="200"></a><br>
+Data Curation Pipeline
+</h1>
+</div>
+
 
 To improve the training of a large language model, it is crucial to have high-quality text data. Achieving higher-quality content requires applying filters and modifications to the data to remove data of bad quality (containing no proper sentences, high symbol to character ratio, high ratio of flagged words, or irrelevant languages).
 
