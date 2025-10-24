@@ -1,0 +1,110 @@
+#!/bin/bash
+#SBATCH --job-name gpt_nl_delivery_collection_job
+#SBATCH --cpus-per-task=16
+#SBATCH --ntasks=1
+#SBATCH --mem=40G
+#SBATCH --partition=rome
+#SBATCH --exclude gcn[73,74]
+#SBATCH --time=02:30:00
+#SBATCH --output=output/slurm-%j-delivery.out
+
+## This job automates most of the steps of deliverying a curated dataset collection to
+## the final gpt_nl_dataset version.
+## It follows the steps described in the file DATASET_DEPLOYMENT.md automating most of 
+## the activity there.
+
+## USAGE: sbatch deliver_collection.job <curated_source> <collection_destination> 
+##
+## where 
+##
+## <curated_source_folder> is the folder containing all the final .parquet files
+##     that compose the dataset collection.  We assume that all the .parquet files in this
+##     folder are part of the collection. 
+## <collection_name> is the name of the collection in the delivery folder. A folder
+##     where the .parquet files should be copied to will be created -- AND -- where all the
+##     follow up checks and re-formatting will take place.
+##
+## Example: sbatch deliver_collection.job <GPT-NL>/wp12/curated/dnb/pipeline00003_dnb_769ce7c/stage5_deduplication dnb
+
+_SOURCE=${1:-"~/tmp"} #if by mistake no dataset source folder is given, it will use tmp -> no damage
+_COLLECTION_NAME=${2:-"~/tmp"} #if by mistake no dataset destination folder is given, it will use tmp -> no damage
+
+# GPT_NL_DATASET_ROOT="/projects/0/prjs0986/wp12/dataset_delivery/ds_v1.0_test"
+GPT_NL_DATASET_ROOT="/projects/0/prjs0986/wp12/dataset_delivery/gpt_nl_dataset_v2.0_wip"
+PIPELINE_DIR="/home/user123/git/pipeline"
+SCRIPTS="$PIPELINE_DIR/helper-scripts"
+DATASET_SOURCE=$_SOURCE
+DATASET_DESTINATION="$GPT_NL_DATASET_ROOT/$_COLLECTION_NAME"
+
+source $PIPELINE_DIR/init_snellius.sh
+$PIPELINE_DIR/.venv/bin/activate
+
+echo "==> Using source: $DATASET_SOURCE"
+echo "==> Using destination: $DATASET_DESTINATION"
+
+# Create the output directory first
+echo "==> Creating output directory $DATASET_DESTINATION"
+mkdir -p --verbose $DATASET_DESTINATION
+
+# Copying files
+echo "==> Copying files"
+cp --verbose $_SOURCE/*.parquet $DATASET_DESTINATION 
+
+# Changing directory to destination
+CURRENT_DIR=$(pwd -P)
+echo "==> Changing directory to destination"
+cd $DATASET_DESTINATION
+pwd
+
+# Patch parquet files for last-minute adjustments on the data.  See the list of patches
+# in the file DATASET_DEPLOYMENT.md or in the script helper-scripts/patch_parquet.py
+# Comment the next lines if you do not want to patch the files.
+echo "==> Patching parquet files"
+python $SCRIPTS/patch_parquet.py --input_dir . --verbose
+
+# Checking file integrity
+echo "==> Checking integrity of copied files"
+python $SCRIPTS/check_parquet.py .
+
+if [ ! -f ./ALL_PARQUET_FILES_VALID ]; then
+    echo "Corrupted files found. Aborting. Maybe start the process again!?"
+    exit 1 
+fi
+echo "==> All files are valid. Proceeding with the delivery."
+# Renaming files to match the delivery standard
+echo "==> Renaming files to match the delivery standard"
+python $SCRIPTS/rename_parquet.py --input_dir . --prefix $_COLLECTION_NAME --verbose
+
+# Reformatting files
+echo "==> Reformatting files to match the delivery standard"
+python $SCRIPTS/dataset_format.py . --yes
+
+# Collecting dataset statistics
+echo "==> Collecting dataset statistics"
+python $SCRIPTS/dataset_stats.py .
+if [ ! -f ./dataset_stats.yaml ]; then
+    echo "Could not generate dataset statistics. Check at source base!"
+fi
+
+# Re-checking file integrity
+echo "==> Re-checking integrity of files after reformatting"
+rm ./ALL_PARQUET_FILES_VALID # remove the file to force re-check
+python $SCRIPTS/check_parquet.py .
+
+if [ ! -f ./ALL_PARQUET_FILES_VALID ]; then
+    echo "Corrupted files found after reformatting. Aborting. Maybe start the process again!?"
+    exit 1 
+fi
+echo "==> All files are valid after reformatting. Proceeding with the delivery."
+
+#echo "Sampling $PERCENT% of $DATASET"
+#poetry run create_eval_sample \
+#  --sample_percent $PERCENT \
+#  --output /projects/0/prjs0986/wp12/extracted/$DATASET/eval_sample \
+#  /projects/0/prjs0986/wp12/extracted/$DATASET/
+
+echo "==> Changing back to current directory"
+cd $CURRENT_DIR
+pwd
+
+# sleep 10

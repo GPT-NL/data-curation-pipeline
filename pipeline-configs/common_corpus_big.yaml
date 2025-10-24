@@ -1,0 +1,58 @@
+# Commit these config files!
+# Don't run --help, as it exits the entire application.
+# Don't run the same stage twice.
+
+# The processing type that will be used for every stage: local or hpc.
+# May be overwritten by a stage's configuration.
+processing_type: local
+
+# Whether to use the previous output folder as the input folder for the next stage.
+# `input_folder` may be overwritten by a stage's configuration.
+input_from_previous_output: true
+
+# The output folder template that determines the output folder for every stage.
+# May be overwritten by a stage's configuration. If not set, the stage's default
+# value will be used.
+# Dynamic values that can be used:
+#   {pipeline_iteration} is pipeline{run_idx}_{yaml_filename}_{previous_commit_shorthash} and must be the entire folder name.
+#   {stage_idx} is the stage 1-based index.
+#   {stage_idx0} is the stage 0-based index.
+#   {stage_name} is the stage name.
+output_folder_template: test-data/COMMON_CORPUS_NL_BIG/stage{stage_idx}_{stage_name}
+
+# The logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration. All substrings of
+# `{output_folder}` will be replaced by the output folder of the stage, but only
+# if `output_folder` is explicitly set (using the stage's `output_folder` option
+# or using the global `output_folder_template`).
+logs_folder: "{output_folder}/logs"
+
+# The slurm logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration.
+# All substrings of`{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+slurm_logs_folder: "{output_folder}/slurm_logs"
+
+
+# When running the slurm pipeline, one might want to get some updates of a long running process
+# without checking the slurm environment everytime with squeue or other tools.
+# An alternative is to make use of the Slurm mailing functionality that send the user with the status
+# of the running process everytime the status changes.
+#mail_type : "ALL"
+#mail_user : your@email.com
+
+
+# The stage-dependent options.
+# Run `poetry run stage STAGE_NAME` to see the available options per stage.
+# Use full option names (e.g. `--input_folder` but without the `--`) instead of
+# abbreviations (e.g. `-i`).
+# All substrings of `{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+# Other substrings are replaced as described for `output_folder_template`.
+stages:
+  - stage: string_normalization
+    input_folder: test-data/COMMON_CORPUS_NL_BIG
+  - stage: heuristic_filtering
+  

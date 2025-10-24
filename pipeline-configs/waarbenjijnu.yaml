@@ -1,0 +1,156 @@
+# Commit these config files!
+# Don't run --help, as it exits the entire application.
+# Don't run the same stage twice.
+
+# The processing type that will be used for every stage: local or hpc.
+# May be overwritten by a stage's configuration.
+processing_type: hpc
+
+# Whether to use the previous output folder as the input folder for the next stage.
+# `input_folder` may be overwritten by a stage's configuration.
+input_from_previous_output: true
+
+# The output folder template that determines the output folder for every stage.
+# May be overwritten by a stage's configuration. If not set, the stage's default
+# value will be used.
+# Dynamic values that can be used:
+#   {pipeline_iteration} is pipeline{run_idx}_{yaml_filename}_{previous_commit_shorthash} and must be the entire folder name.
+#   {stage_idx} is the stage 1-based index.
+#   {stage_idx0} is the stage 0-based index.
+#   {stage_name} is the stage name.
+output_folder_template: /projects/prjs0986/wp12/curated/waarbenjijnu/{pipeline_iteration}/stage{stage_idx}_{stage_name}
+
+# The logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration. All substrings of
+# `{output_folder}` will be replaced by the output folder of the stage, but only
+# if `output_folder` is explicitly set (using the stage's `output_folder` option
+# or using the global `output_folder_template`).
+logs_folder: "{output_folder}/logs"
+
+# The slurm logs folder used for any stage's Datatrove logs.
+# May be overwritten by a stage's configuration.
+# All substrings of`{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+slurm_logs_folder: "{output_folder}/slurm_logs"
+
+# When running the slurm pipeline, one might want to get some updates of a long running process
+# without checking the slurm environment everytime with squeue or other tools.
+# An alternative is to make use of the Slurm mailing functionality that send the user with the status
+# of the running process everytime the status changes.
+mail_type: "ALL"
+mail_user: ""
+
+# When running a pipeline on HPC, the Energy Aware Runtime (EAR)  system software for energy management can be activated.
+# EAR offers energy and performance node monitoring, job accounting and energy optimization.
+hpc_ear: "false"
+
+# This argument makes sure that a certain node is not used by the curation pipeline team as the training team is using them for training purposes
+hpc_exclude: "gcn[73-74]"
+
+# The stage-dependent options.
+# Run `poetry run stage STAGE_NAME` to see the available options per stage.
+# Use full option names (e.g. `--input_folder` but without the `--`) instead of
+# abbreviations (e.g. `-i`).
+# All substrings of `{output_folder}` will be replaced by the output folder of
+# the stage, but only if `output_folder` is explicitly set (using the stage's
+# `output_folder` option or using the global `output_folder_template`).
+# Other substrings are replaced as described for `output_folder_template`.
+stages:
+  - stage: data_splitting
+    input_folder: /projects/prjs0986/wp12/extracted/waarbenjijnu/
+    hpc_n_tasks: "1"
+    hpc_time: "01:00:00" # should take max 4.86h
+    hpc_partition: "genoa"
+  - stage: string_normalization
+    ParquetReader:
+      # For more information about the reader https://github.com/huggingface/datatrove/blob/v0.3.0/src/datatrove/pipeline/readers/parquet.py
+      paths_file: "null" # If define specific parquet file is used instead of a whole folder
+      limit: "-1" # Defines the number of documents to run the pipeline on
+      skip: "0" # Skip the first n documents
+      recursive: "false" # if recursive is set to true glob_patterns needs to be set to null (internal bug...)
+      glob_pattern: "*parquet"
+      shuffle_files: "false"
+    hpc_n_tasks: "4"
+    hpc_time: "01:00:00" # should take max 4.86h
+    hpc_partition: "genoa"
+    FTFYFormatter:
+      normalization: "NFC"
+  - stage: heuristic_filtering
+    hpc_n_tasks: "4"
+    hpc_time: "04:00:00" # should take max 4.86h
+    hpc_partition: "genoa"
+    LanguageFilter:
+      languages: [
+          "en", # English
+          "nl", # Dutch
+          "da", # Danish
+          "sv", # Swedish
+          "af", # Afrikaans
+          "fy", # Frisian
+          "de", # German
+        ]
+      language_threshold: "0.65"
+      backend: "ft176"
+    NordicPileQualityFilter:
+      max_digit_fraction: "0.2"
+      min_n_char: "800" # Only accept text longer than 800 characters. Below this point, most are reactions and not real posts and people that write these longer posts tend to be more serious
+      min_mean_med_char: "9"
+      min_mean_med_word: "2.1"
+    GopherQualityFilter:
+      min_doc_words: "null"
+      max_doc_words: "null"
+      min_avg_word_length: "null"
+      max_avg_word_length: "null"
+      max_symbol_word_ratio: "0.1"
+      max_bullet_lines_ratio: "0.9"
+      max_ellipsis_lines_ratio: "0.3"
+      max_non_alpha_words_ratio: "0.8"
+      min_stop_words: "2"
+    GopherRepetitionFilter:
+      dup_line_frac: "0.35"
+      dup_para_frac: "0.35"
+      dup_line_char_frac: "0.2"
+      dup_para_char_frac: "0.2"
+      top_n_grams: [[2, 0.25], [3, 0.23], [4, 0.21]]
+      dup_n_grams:
+        [[5, 0.20], [6, 0.19], [7, 0.18], [8, 0.17], [9, 0.16], [10, 0.15]]
+  - stage: toxic_language_detection
+    # input_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00000_waarbenjijnu_769ce7c/stage3_heuristic_filtering
+    # output_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00000_waarbenjijnu_769ce7c/stage4_toxic_language_detection
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: "1"
+    hpc_time: "24:00:00" # should take max 4.86h
+    hpc_cpus_per_task: "4" # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+    hpc_mem_per_cpu_gb: "15"
+    hpc_n_tasks: "30"
+    env_commands: "export HF_HOME=/projects/prjs0986/.hf_cache_dir"
+  - stage: pii_masking
+    # input_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00001_waarbenjijnu_769ce7c/stage4_toxic_language_detection
+    # output_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00001_waarbenjijnu_769ce7c/stage5_pii_masking
+    hpc_time: "08:00:00"
+    hpc_partition: gpu_a100
+    # hpc_reservation: gpt-nl
+    hpc_n_tasks: "1" # Number of data trove tasks with split up files
+    hpc_gpus: "1"
+    hpc_cpus_per_task: "16" # Need 16 cores (per private AI GPU instance - actually needs 64 but CPU affinity warnings can be ignored with GPU instance)
+    #hpc_mem_per_cpu_gb: "1"  # 120/128 = 0.9375
+    hpc_mem_per_cpu_gb: "4" # Need 64GB ram per private AI instance, 64/16 = 4
+    # Start multiple containers with different ports and wait for healthy containers
+    env_commands: "for gpu in ${{CUDA_VISIBLE_DEVICES//,/ }}; do CUDA_VISIBLE_DEVICES=$gpu apptainer run --nv --contain --pwd /app --env PAI_PORT=$((gpu+SLURM_ARRAY_TASK_ID+8080)) --env PAI_TRITON_HTTP_PORT=$((gpu+SLURM_ARRAY_TASK_ID+SLURM_ARRAY_TASK_MAX+8089)) /projects/0/prjs0986/wp13/private-ai/private_ai_gpu.sif & done; sleep 40"
+    PII_PrivateAI_TNO:
+      chunk_pool_workers: 32 # Number of workers for chunks
+      doc_pool_workers: 16 # Number of workers for documents
+      request_batch_size: 64 # Chunks of the same document to be sent in the same request to PAI
+      batch_size: 16 # Documents to handle in the same batch
+      api_endpoint: "http://localhost:808{CUDA_VISIBLE_DEVICES}/" # Template for endpoint per GPU instance (uses task array index and comma-separated indexes from CUDA_VISIBLE_DEVICES)
+      replacement_type: "MARKER" # GPU instance does not support SYNTHETIC
+      synthetic_replacement_chance: 1.00 # Replace 100% of markers with own synthetic data
+      synthetic_replacement_locale: "nl-NL" # Depending on the dominant language use : English en-GB, Dutch nl-NL
+  - stage: deduplication
+    # input_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00001_waarbenjijnu_769ce7c/stage5_pii_masking
+    # output_folder: /projects/0/prjs0986/wp12/curated/waarbenjijnu/pipeline00001_waarbenjijnu_769ce7c/stage6_deduplication
+    hpc_n_tasks: "4"
+    hpc_time: "04:00:00"
+    hpc_partition: "genoa"

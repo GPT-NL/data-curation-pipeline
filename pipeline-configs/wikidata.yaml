@@ -1,0 +1,54 @@
+processing_type: hpc
+input_from_previous_output: true
+output_folder_template: /projects/prjs0986/wp12/curated/wikidata/{pipeline_iteration}/stage{stage_idx}_{stage_name}
+logs_folder: "{output_folder}/logs"
+slurm_logs_folder: "{output_folder}/slurm_logs"
+mail_user:
+mail_type: ALL
+hpc_ear: false
+hpc_exclude: "gcn[73-74]"
+hpc_nice: 100
+stages:
+  - stage: data_splitting
+    input_folder: /projects/prjs0986/wp12/extracted/wikidata/
+    max_file_size: "20_000_000" # 20-22MB
+    batch_size: 20 # write output files with this frequency to have a margin of 2MB
+    hpc_n_tasks: 1 # there is only one input file
+    # hpc_partition: rome # rome or genoa
+    # hpc_cpus_per_task: 16
+    # hpc_mem_per_cpu_gb: 1 # needs around 4GB of RAM
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: 1 # 1 GPU for each job, faster processing than multi-device
+    hpc_cpus_per_task: 16 # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+    hpc_mem_per_cpu_gb: 11 # h100: 1/4 node = 180 GiB across 16 cores --> 180/16 = 11.25 GB
+    hpc_time: "02:00:00" # takes around 1h on gpu_h100
+  - stage: llm_processing
+    # input_folder: /projects/prjs0986/wp12/curated/wikidata/pipeline00003_wikidata_905d770/stage1_data_splitting
+    # output_folder: /projects/prjs0986/wp12/curated/wikidata/pipeline00003_wikidata_905d770/stage2_llm_processing/
+    hpc_n_tasks: 981 # one task for each file
+    hpc_time: "02:00:00" # should take max 30 minutes
+    hpc_partition: gpu_h100
+    hpc_reservation: gpt-nl
+    hpc_gpu: 1 # 1 GPU for each job, faster processing than multi-device
+    hpc_cpus_per_task: 16 # h100: 1/4 node = 16 cores + 1 GPU + 180 GiB
+    hpc_mem_per_cpu_gb: 11 # h100: 1/4 node = 180 GiB across 16 cores --> 180/16 = 11.25 GB
+    env_commands: "export HF_HOME=/projects/prjs0986/.hf_cache_dir ; module load 2024 CUDA/12.6.0 ; export CUDA_HOME=/sw/arch/RHEL9/EB_production/2024/software/CUDA/12.6.0/"
+    RegexFilter:
+      {}
+      # regex backslashes are doubled from yaml!!
+      # regex_exp: ([\d°]{3,})|(\.(\w{2,4}))|(\/\w+\/\w+)|(WorldCat)|(Wikikids)
+    LLMProcessingStep:
+      model_name: microsoft/phi-4
+      # debug_mode: True
+      # max_tokens: 200
+      batch_size: 1000
+      # prompt backslashes (\n) are doubled from yaml!!
+      # prompt: |
+      #   Given the following sentences, produce a fluent and coherent paragraph that contains all the information in the sentences. Do not generate any information that is not in the sentences. Ensure that the paragraph is grammatically and syntactically correct in Dutch. Do not produce any additional text, only the paragraph.
+      #   Sentences:
+      #   {text}
+      #
+      #   Paragraph:
+    LanguageFilter:
+      language_threshold: 0.5
