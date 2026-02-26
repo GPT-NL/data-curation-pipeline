@@ -1,6 +1,6 @@
 <div align="center">
 <h1>
-<a href="https://gpt-nl.nl/" target="_blank"><img src="https://raw.githubusercontent.com/GPT-NL/.github/refs/heads/main/profile/assets/logo.svg" alt="GPT-NL" width="200" style="backgroind-color: #fff"></a><br>
+<a href="https://gpt-nl.nl/" target="_blank"><img src="https://raw.githubusercontent.com/GPT-NL/.github/refs/heads/main/profile/assets/logo.svg" alt="GPT-NL" width="200" style="background-color: #fff"></a><br>
 Data Curation Pipeline
 </h1>
 </div>
