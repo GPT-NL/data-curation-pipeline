@@ -52,7 +52,7 @@ The post-processing procedures are:
 
 Scripts for this procedure are collected in the `pipeline` repository. For executing them, you will have to:
 
-1. Clone the repository. Follow instructions from the [repository README.md](https://ci.tno.nl/gitlab/gpt-nl/dataset_creation/pipeline)
+1. Clone the repository. Follow instructions from the [repository README.md](https://github.com/GPT-NL/data-curation-pipeline#data-curation-pipeline)
 2. Run the initialization script `source init_snellius.sh`
 
 <TODO>: Include here a sequence (in order) of the post-processing procedures.
