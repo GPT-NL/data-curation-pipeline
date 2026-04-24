@@ -8,7 +8,7 @@ Data Curation Pipeline
 
 To improve the training of a large language model, it is crucial to have high-quality text data. Achieving higher-quality content requires applying filters and modifications to the data to remove data of bad quality (containing no proper sentences, high symbol to character ratio, high ratio of flagged words, or irrelevant languages).
 
-The curation of the collected data follows the steps as defined in the [documentation](https://gpt-nl.ci.tno.nl/documentation/).
+The curation of the collected data follows the steps as defined in the [System Architecture Document, specifically Chapter 3: *Architecture and Design of the Data Curation Phase*, pp 32-77](https://resolver.tno.nl/uuid:9b9afee3-3cd1-44e7-95d7-03964f1b3520).
 
 # Table of Contents
 
