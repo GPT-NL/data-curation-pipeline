@@ -52,7 +52,7 @@ The post-processing procedures are:
 
 Scripts for this procedure are collected in the `pipeline` repository. For executing them, you will have to:
 
-1. Clone the repository. Follow instructions from the [repository README.md](https://github.com/GPT-NL/data-curation-pipeline#data-curation-pipeline)
+1. Clone the repository. Follow instructions from the [repository README.md](https://github.com/GPT-NL/data-curation-pipeline?tab=readme-ov-file#data-curation-pipeline)
 2. Run the initialization script `source init_snellius.sh`
 
 <TODO>: Include here a sequence (in order) of the post-processing procedures.
@@ -97,7 +97,7 @@ to differences in the pipeline execution, number of files, etc. They are typical
 some sequence of numbered files bound to the number of threads and slurm jobs.
 
 This post processing procedure puts in place a single naming convention for all the
-files within and accross the dataset.
+files within and across the dataset.
 
 To execute this procedure, run the `rename_parquet.py` script as follows:
 
@@ -173,7 +173,7 @@ delivery set files.
 If columns are missing they are filled in with a defined default value.
 
 This post processing procedure puts in place a mechanism to homogenize the files within
-and accross the dataset and its collection.
+and across the dataset and its collection.
 
 To execute this procedure, run the `dataset_format.py` script as follows:
 
