@@ -27,12 +27,15 @@ The curation of the collected data follows the steps as defined in the [System A
 
 ## Split between pipeline and modules used in the pipeline
 
-This repository contains the data curation pipeline. The modules used in the pipeline are developed in [this repository](https://ci.tno.nl/gitlab/gpt-nl/dataset_creation/modules).
+This repository contains the data curation pipeline. The modules used in the pipeline are developed in [this repository](https://github.com/GPT-NL/data-curation-modules).
 
 The reason for working this way is that we want to keep the data curation modules isolated, small and easy to use. In the pipeline, we'll want to specify which version of the module we want to use (using something like `poetry add gptnl_ftfy_formatter@0.1.0`). Putting both the pipeline and the modules in the same repository promotes local referencing, which in turn goes against the point of versioning.  
 Another reason is that we'll want to open source our code, which will be made easier with this way of working. Publishing to the public PyPi index is as simple as removing `--repository tno-gptnl` from the publish command.
 
+<!--
+TODO: Replace this with a link to the public PyPI index when the modules are public.
 [This repository](https://ci.tno.nl/gitlab/gpt-nl/dataset_creation/private-pypi-index/-/packages) (with [this API link](https://ci.tno.nl/gitlab/api/v4/projects/16649/packages/pypi)) contains the private package index.
+-->
 
 ## Local installation
 
@@ -51,8 +54,10 @@ Format the code **_automatically_** with [black](https://code.visualstudio.com/d
 - Login to Snellius. If you do not know how to do this, follow [this](https://servicedesk.surf.nl/wiki/display/WIKI/Connecting+to+the+system) tutorial.
 - Clone this repository using:
 
-  ```shell
-  git clone git@.../dataset_creation/pipeline.git
+  ```bash
+  git clone https://github.com/GPT-NL/data-curation-pipeline.git
+  # or if you have SSH access:
+  git clone git@github.com:GPT-NL/data-curation-pipeline.git
   ```
 
   Note that for this step you may need to adjust your ssh key (on Snellius).
@@ -158,11 +163,11 @@ stages:
     output_folder: test-data/__. final
 ```
 
-> Please have a look at [\pipeline-configs/test-run.yaml](./pipeline-configs/test-run.yaml) for more information.
+> Please have a look at [pipeline-configs/test-run.yaml](./pipeline-configs/test-run.yaml) for more information.
 
 ## Using private modules
 
-We use [this private package index](https://ci.tno.nl/gitlab/gpt-nl/dataset_creation/private-pypi-index/-/packages). The `poetry.toml` file contains the credentials. The `pyproject.toml` specifies the location of the private package index.
+We used a private package index during development and curation. The `poetry.toml` file is augmented to contain the credentials. The `pyproject.toml` specifies the location of the private package index.
 
 **To add dependencies** from this private package index, use `poetry add DEPENDENCY --source tno-gptnl`. For first installing this repository, `poetry install` handles everything automatically.
 
@@ -172,7 +177,7 @@ We use [this private package index](https://ci.tno.nl/gitlab/gpt-nl/dataset_crea
 
 ## Developing new pipeline modules
 
-This repository is only for creating the pipeline. For developing new modules, see [this repository](https://ci.tno.nl/gitlab/gpt-nl/dataset_creation/modules). You can publish those to our private package index, after which you can install them in this repository using [the steps above](#using-private-modules). This allows version pinning and stimulates isolated module development, which in turn is useful for module reuse and open sourcing the code at some point.
+This repository is only for creating the pipeline. For developing new modules, see [this repository](https://github.com/GPT-NL/data-curation-modules). You can publish those to a private package index, after which you can install them in this repository using [the steps above](#using-private-modules). This allows version pinning and stimulates isolated module development, which in turn is useful for module reuse and open sourcing the code at some point.
 
 ## Data
 
@@ -216,7 +221,7 @@ In this case, the potential file size can exceed the `max_file_size` by a margin
 If you set the `line_chunk_size`, this stage will split lines according to `line_chunk_size` (simple string chunking, can truncate words at the extremes).
 This will impact the `line_length` and reduce your file size margins.
 
-If you don't want to split the rows, set `line_chunk_size=None` and the output file will only be splitted row-wise to get the desired file size.
+If you don't want to split the rows, set `line_chunk_size=None` and the output file will only be split row-wise to get the desired file size.
 
 ### 2. String normalization
 
@@ -317,7 +322,7 @@ The following table indicates the entities that are detected and marked by Priva
 
 This stage involves removing all exact duplicates and performing MinHash Deduplication.
 Currently this stage only works on the HPC. As such, please run it using the -p hpc argument.
-In the future the default for the deduplication will be changed to HPC. It remains to be disscussed if a local version of deduplication will be supported in the future.
+In the future the default for the deduplication will be changed to HPC. It remains to be discussed if a local version of deduplication will be supported in the future.
 
 ### 6. Toxic language detection
 
@@ -330,14 +335,14 @@ The translation may take quite a long time, so be sure to analyse beforehand the
 1. split the dataset (use the `data_splitting` stage with initial `max_file_size`, `line_chunk_size` and `batch_size`)
 2. find the biggest file: `ls -lhS PATH_TO_SPLITTED_DATASET | head`
 3. use the `machine_translation` stage with `dry_run=True` and `glob_pattern=*BIGGEST_FILE.parquet` to determine the total number of batches (see in the job logs)
-4. as reference, the translation model running on H100 node on snellius (partition=gpu_h100) takes approximately 12 seconds to process 1 batch of size 32
+4. as reference, the translation model running on H100 node on snellius (`partition=gpu_h100`) takes approximately 12 seconds to process 1 batch of size 32
 5. estimate the execution time for the biggest file (`n_batches` \* `time_per_batch`)
 6. if the estimated time exceeds the time limit (take some margin!!), restart from point 1 with appropriate parameters (`max_file_size`, `line_chunk_size` and `batch_size`)
 7. set `hpc_n_tasks` to the number of files (you can also combine more files in one task, by dividing this value by a factor), remove `dry_run` and `glob_pattern` and re-run the `machine_translation` stage
 
 ### 8. LLM Processing
 
-This module allows you to process text throuh a LLM. You pick the model name and the prompt and you get back the results.
+This module allows you to process text through a LLM. You pick the model name and the prompt and you get back the results.
 
 ### Visualise Carbon Footprint
 
@@ -399,4 +404,6 @@ Further instructions for reporting changes are found in the `CHANGELOG.md` file.
 
 To install mlcroissannt, use the following command:
 
+```bash
 pip install "git+https://github.com/mlcommons/croissant.git@main#subdirectory=python/mlcroissant"
+```
